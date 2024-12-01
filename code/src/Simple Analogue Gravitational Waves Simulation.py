@@ -119,7 +119,7 @@ grid_size = 500 + 1
 
 # Scale grid element size (default 1 unit) to a real astronomical distance
 # (in metres) by a factor of 10000.
-astro_length_scaling = 1e4
+astro_length_scaling = 1e3
 formatted_astro_length_scaling = format(astro_length_scaling, ".0e")
 
 # Define reusable variable structures for horizontal slider configuration.
@@ -741,6 +741,13 @@ def update_info_window(
                 text=f"Astro Orbital Decay Rate: {orbital_decay_rate:.2e} m/s"
             )
             
+    # Schedule the next update, 500 ms
+    info_window.after(500,
+                      update_info_window, 
+                      run_option_value, 
+                      shared_data, 
+                      info_window, labels)
+            
 
 # Close the information display window at the end of a run.
 def close_info_window():
@@ -787,7 +794,7 @@ def increment_polar_angle(
         initial_outer_orbital_radius: ti.f64,
         outer_orbital_radius: ti.f64,
         previous_polar_angle: ti.f64,
-        sphere_angular_stepsize: ti.f64) -> ti.f64:
+        polar_angle_increment: ti.f64) -> ti.f64:
     """
     Increment the polar angle for an orbital simulation.
 
@@ -805,7 +812,7 @@ def increment_polar_angle(
           affects the angular step size.
         - previous_polar_angle (float): The polar angle from the previous 
           iteration, used as the starting point for the new angle.
-        - sphere_angular_stepsize (float): The angular step size per iteration, 
+        - polar_angle_increment (float): The angular step size per iteration, 
           before adjusting for the orbital radius.
 
     Returns:
@@ -819,7 +826,7 @@ def increment_polar_angle(
           within the valid range for polar angles (0 to 360 degrees).
     """
     return ((previous_polar_angle
-             + sphere_angular_stepsize
+             + polar_angle_increment
              * (outer_orbital_radius / initial_outer_orbital_radius) ** -3/2)
             % 360)
 
@@ -1850,7 +1857,7 @@ def update_camera_view_from_mouse(
             horiz_angle_deg = (horiz_angle_deg + 180) % 360 - 180
 
             # Update vert_angle_deg (up-down rotation)
-            vert_angle_deg_sensitivity = 100.0
+            vert_angle_deg_sensitivity = 200.0
             vert_angle_deg -= mouse_shift_y * vert_angle_deg_sensitivity
 
             slider_vert_angle_deg.set(vert_angle_deg)
@@ -2177,13 +2184,9 @@ def mainline_code(shared_data):
     # -------------------------------------------------------------------------
     initial_elastic_extension = 100
     elastic_constant = 1e7
-    
-    # -------------------------------------------------------------------------
-    # Model sheet parameters
-    # -------------------------------------------------------------------------
     timestep = 1e-5
     boundary_damping_factor = 0.06
-    sphere_angular_stepsize = 1.0
+    polar_angle_increment = 2.0
     oscillator_mass = 1.0
     model_omega = 0.0
     
@@ -2195,7 +2198,7 @@ def mainline_code(shared_data):
     astro_orbital_separation = 0.0
     astro_outer_sphere_orbital_speed = 0.0
     astro_orbital_decay_rate = 0.0
-    astro_length_scaling = 1e2
+
     newtons_const = 6.67430e-11   # Newton's constant
     newtons_const_cubed = newtons_const * newtons_const * newtons_const
     newtons_const_to_fourth_power = newtons_const ** 4
@@ -2279,7 +2282,6 @@ def mainline_code(shared_data):
     
     scene = rendering_window.get_scene()
     simulation_frame_counter = 0
-
     start_time = time.time()
     loop_duration = 0.0
     fps = 0.0
@@ -2295,14 +2297,13 @@ def mainline_code(shared_data):
     
     merged_binary_system = False
     merge_only_once = True
-
+    place_perturbation_only_once = True
     prev_mouse_pos = None  # To store the last mouse position
     prev_zoom_mouse_pos = None
     # Globals for camera state
     LMB_already_active = False
     RMB_already_active = False
     view_distance = 0.5  # Distance from the center of the surface
-    camera_height = 0.5
     camera_position_x = 0.0
     camera_position_y = 0.0
     horiz_angle_deg = 0.0    # Horizontal angle adjustable by the mouse
@@ -2349,7 +2350,7 @@ def mainline_code(shared_data):
                         initial_outer_orbital_radius,
                         outer_orbital_radius,
                         previous_polar_angle,
-                        sphere_angular_stepsize
+                        polar_angle_increment
                     )
                     calculate_orbital_coords(
                         grid_centre,
@@ -2493,38 +2494,40 @@ def mainline_code(shared_data):
                                     outer_orbital_radius
                                 )
             else: # A test run
-                spheres_to_display = 0
-                tkinter_spheres_to_display.set(0)
-                slider_spheres_to_display.config(**greyed_out_slider)
-                outer_orbital_coords[None] = ti.Vector([
-                grid_centre[None][0] + outer_orbital_radius,
-                0.0,
-                grid_centre[None][2] # keep this axis zero, as the two test run 
-                                     # perturbation positions have only the 
-                                     # x-coord as non-zero value.
-                ])
-                inner_orbital_coords[None] = ti.Vector([
-                    grid_centre[None][0] - outer_orbital_radius,
+                if place_perturbation_only_once:
+                    spheres_to_display = 0
+                    tkinter_spheres_to_display.set(0)
+                    slider_spheres_to_display.config(**greyed_out_slider)
+                    outer_orbital_coords[None] = ti.Vector([
+                    grid_centre[None][0] + outer_orbital_radius,
                     0.0,
-                    grid_centre[None][2]
-                ])
-                overlay_perturb_shape_onto_grid(
-                    outer_perturb_radius,
-                    outer_perturb_array,
-                    outer_orbital_coords,
-                    oscillator_positions,
-                    oscillator_velocities
-                )
-                overlay_perturb_shape_onto_grid(
-                    inner_perturb_radius,
-                    inner_perturb_array,
-                    inner_orbital_coords,
-                    oscillator_positions,
-                    oscillator_velocities
-                )
-                if run_option_value == "Test 1 - two of four borders damped":
-                    number_of_damped_borders = 2
-                        
+                    grid_centre[None][2] # keep this axis zero, as the two test run 
+                                         # perturbation positions have only the 
+                                         # x-coord as non-zero value.
+                    ])
+                    inner_orbital_coords[None] = ti.Vector([
+                        grid_centre[None][0] - outer_orbital_radius,
+                        0.0,
+                        grid_centre[None][2]
+                    ])
+                    place_perturbation_only_once
+                    overlay_perturb_shape_onto_grid(
+                        outer_perturb_radius,
+                        outer_perturb_array,
+                        outer_orbital_coords,
+                        oscillator_positions,
+                        oscillator_velocities
+                    )
+                    overlay_perturb_shape_onto_grid(
+                        inner_perturb_radius,
+                        inner_perturb_array,
+                        inner_orbital_coords,
+                        oscillator_positions,
+                        oscillator_velocities
+                    )
+                    if run_option_value == "Test 1 - two of four borders damped":
+                        number_of_damped_borders = 2
+                    place_perturbation_only_once = False    
             # The damping of the grid boundary is done for both the simulation
             # proper, and test, cases.
             damp_grid_boundary(
@@ -2718,13 +2721,6 @@ def mainline_code(shared_data):
         # Housekeeping of loop data -------------------------------------------
         loop_duration = time.time() - prev_time_stamp
         fps = 1/loop_duration
-        root.after(
-            0, 
-            update_info_window, 
-            run_option_value, 
-            shared_data, 
-            info_window, 
-            labels)
         
         if run_option_value in [
                 "Test 1 - two of four borders damped",
@@ -2739,7 +2735,6 @@ def mainline_code(shared_data):
             start_time = time.time()
         elapsed_time = time.time() - start_time  # This is our clock time. Runs
                                                  # even when loop is paused.
-
         with shared_data['lock']:
             shared_data['elapsed_time'] = elapsed_time
             shared_data['fps'] = fps
