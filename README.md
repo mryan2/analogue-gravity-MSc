@@ -1,16 +1,13 @@
 # MSc Project: Gravitational Wave Simulation
-
 Implementation, using the Python programming language, of a simple numerical, 
 computer-based visualisation of gravitational waves emitted by two orbiting bodies. 
 
-x§
 ## Features
 - 3D visualization of gravitational waves.
 - User-controlled camera rotation and zoom for interactive exploration.
 - A GUI for parameter customization.
 
 ## Demonstration Videos
-
 **Early Development** 
    Visualization using Mayavi: [Link] https://vimeo.com/1043240577
    Prototype for GUI (Tkinter): [Link] https://vimeo.com/1045104014
@@ -31,6 +28,3 @@ x§
 
 **Camera Controls**  
    Camera navigation: [Link] https://vimeo.com/1045103903
-
-
-
