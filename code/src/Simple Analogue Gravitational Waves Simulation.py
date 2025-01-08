@@ -35,7 +35,7 @@ from sys import (
     version  # Specify Python version
 )
 
-# Import threading components because the GUI cannot ruradiusn in the same process
+# Import threading components because the GUI cannot run in the same process
 # as the main loop.
 from threading import Thread, Event, Lock
 
@@ -94,10 +94,13 @@ tkinter_vert_angle_deg        = DoubleVar()
 tkinter_camera_zoom           = DoubleVar()
 tkinter_grid_chequer_size     = IntVar()
 # -----------------------------------------------------------------------------
-# grid_size represents the length of one side of a square 2D array .
-# Its value is needed at this point in the code, for the slider definitions. 
-# Since we require a single cell to represent the centre coordinates of the 
-# grid, the grid side lengths need to be incremented by one. 
+# The parameter grid_size represents the length of one side of a square 2D 
+# array. Its value is needed at this point in the code due to several
+# dependencies.
+# Since, for symmetry purposes, a single cell represents the centre of the 
+# grid, the grid side lengths need to be incremented by one so that they are
+# odd-numbered. The grid size can be increased for running on high end 
+# spec machines.
 # -----------------------------------------------------------------------------
 grid_size = 300 + 1
 
@@ -109,7 +112,7 @@ formatted_astro_length_scaling = format(astro_length_scaling, ".0e")
 # -----------------------------------------------------------------------------
 # Define the GUI user input widgets, which allow user control of the run.
 # -----------------------------------------------------------------------------
-# Define reusable variable structures for horizontal slider configuration.
+# Define a reusable generic structure for horizontal slider configuration.
 horizontal_slider_arguments = {
     "bg": "light steel blue",
     "troughcolor": "steel blue",
@@ -140,7 +143,8 @@ frame.pack(**pack_top)
 
 # Create a slider widget to control the radius of the first sphere's orbit.
 # If the masses of the spheres differ, this orbit is always set to be the 
-# larger of the two.
+# larger of the two. The slider values are therefore swapped before the run,
+# if necessary.
 slider_first_orbital_radius = Scale(
     frame,
     label=(
@@ -220,9 +224,9 @@ slider_vertical_scale = Scale(
 slider_vertical_scale.pack(**pack_left)
 
 # Create a vertical slider within the frame to control the smoothing window
-# size, which adjusts the level of smoothing applied to the sheet
-# perturbations. This smoothing is purely visual and does not form part of the
-# rendering computations (i.e. does not feed back into the rendering loop).
+# size, which adjusts the level of smoothing applied to the grid. 
+# The smoothing is purely visual and does not form part of the numerical 
+# integration, i.e. it does not feed back into the rendering loop computations.
 slider_smoothing_window_size = Scale(
     frame,
     label="Smoothing",
@@ -240,7 +244,7 @@ slider_smoothing_window_size.pack(**pack_left)
 frame = Frame(root, bg="black")
 frame.pack(**pack_top)
 
-# Camera left/right movement control slider
+# Camera left/right movement control slider (azimuth, or yaw)
 slider_horiz_angle_deg = Scale(
     frame,
     label="View L/R (degrees)",
@@ -254,7 +258,7 @@ slider_horiz_angle_deg.pack(**pack_left)
 frame = Frame(root, bg="black")
 frame.pack(**pack_top)
 
-# Camera look-up/down control slider
+# Camera look-up/down control slider (altitude, or pitch)
 slider_vert_angle_deg = Scale(
     frame,
     label="View U/D (degrees)",
@@ -391,7 +395,7 @@ def set_and_grey_out_number_of_spheres():
 # -----------------------------------------------------------------------------
 # Initialize a second, separate, dictionary to hold shared data. This 
 # information, generated during each iteration of the main loop, is displayed
-# in a separate window.
+# in a separate window at the right of the screen.
 # -----------------------------------------------------------------------------
 shared_display_data = {
     'lock': Lock(),
@@ -633,7 +637,7 @@ def start_info_window(
         label.pack()
         return label
 
-    # Initialize labels
+    # Initialize labels related to display fields
     labels = {  
         "elapsed_time_label":            create_label(info_window),
         "fps_label":                     create_label(info_window),
@@ -693,7 +697,7 @@ def update_info_window(
     current_fps = shared_display_data['fps']
     
     with shared_display_data['lock']:
-        # Update labels common to all cases
+        # Update labels common to all run cases
         labels["elapsed_time_label"].config(
             text = f"Elapsed Time: {int(hours):02}:"
                    f"{int(minutes):02}:{int(seconds):02}"
@@ -734,7 +738,7 @@ def update_info_window(
             labels["astro_orbital_decay_label"].config(
                 text=f"Astro Orbital Decay Rate: {astro_orbital_decay:.2e} m/s"
             )
-    # Schedule the next update, 500 ms
+    # Schedule the next update (in milliseconds)
     info_window.after(500,
                       update_info_window, 
                       run_option_value, 
@@ -1919,19 +1923,19 @@ def update_camera_view_from_mouse(
         - Sensitivity factors (horizontal: 200.0, vertical: 100.0) scale the 
           impact of mouse movement on angle changes.
     """
-    # Handle mouse drag for POV adjustments
+    # Handle mouse drag for popint of view (POV) adjustments
     current_mouse_pos = rendering_window.get_cursor_pos()
     if LMB_already_active:
         if prev_mouse_pos is not None:
             mouse_shift_x = current_mouse_pos[0] - prev_mouse_pos[0]
             mouse_shift_y = current_mouse_pos[1] - prev_mouse_pos[1]
 
-            # Update horiz_angle_deg (left-right rotation)
+            # Update horiz_angle_deg (left-right rotation, or yaw)
             horiz_angle_deg_sensitivity = 200.0
             horiz_angle_deg += mouse_shift_x * horiz_angle_deg_sensitivity
             horiz_angle_deg = (horiz_angle_deg + 180) % 360 - 180
 
-            # Update vert_angle_deg (up-down rotation)
+            # Update vert_angle_deg (up-down rotation, or pitch)
             vert_angle_deg_sensitivity = 200.0
             vert_angle_deg -= mouse_shift_y * vert_angle_deg_sensitivity
 
@@ -1988,7 +1992,7 @@ def update_zoom_from_mouse(
     current_zoom_mouse_pos = rendering_window.get_cursor_pos()
     if RMB_already_active:
         if prev_zoom_mouse_pos is not None:
-            # Inverted Y-axis
+            # Inverted y-axis
             mouse_shift_y = (
                 - prev_zoom_mouse_pos[1] 
                 + current_zoom_mouse_pos[1]
@@ -2116,7 +2120,7 @@ def mainline_code(
     second_orbital_coords = ti.Vector.field(**vector_parameters)
 
     # -------------------------------------------------------------------------
-    # Grey out fields that cannot be updated by the user during the run
+    # Grey out fields that cannot be updated by the user during the run.
     # -------------------------------------------------------------------------
     greyed_out_run_option_dropdown = {
         "state": "disabled",
@@ -2137,7 +2141,7 @@ def mainline_code(
                run_option_dropdown.config(**greyed_out_run_option_dropdown))
 
     # -------------------------------------------------------------------------
-    #  Main run options vs. testing run options.
+    #  Main run options vs. testing run options
     # -------------------------------------------------------------------------
     if "test" in run_option_value.lower(): 
         # Don't alter the value but grey out.
@@ -2184,15 +2188,15 @@ def mainline_code(
         
     # Allow sufficient space between perturbation extents and grid edge
     # so that everything is captured on the visible grid domain. This is also
-    # designed to work for the spacing of the two test run perturbations which
-    # remain at a fixed location.
+    # designed to work for the spacing of the two test run perturbations (which
+    # remain immovable).
     # Reset orbital radius on each restarted run.
     default_first_orbital_radius = ti.Vector.field(**vector_parameters)
     default_first_orbital_radius = grid_size / 4
-    
     rendered_merged_sphere_coords = ti.Vector.field(3, 
                                                     dtype=ti.f64, 
                                                     shape=(1,))
+    
     # -------------------------------------------------------------------------
     # Damping parameters
     # -------------------------------------------------------------------------
@@ -2200,9 +2204,10 @@ def mainline_code(
     depth_zeroised_grid_edges = 1
     damping_layer_depth = grid_size // 20  
     
-    # Calculate effective grid dimensions, excluding zeroized edges. Only the
-    # effective grid size elements need be updated by the main loop.
-    # Like grid_size, reduced_grid_size is an odd integer.
+    # Calculate 'effective' grid dimensions: exclude zeroized layers at the 
+    # edges. Only the positions and velocities within this smaller grid 
+    # need be updated by the application.
+    # Like grid_size, reduced_grid_size is, consequently, an odd integer.
     reduced_grid_start = depth_zeroised_grid_edges
     reduced_grid_end = grid_size - depth_zeroised_grid_edges
 
@@ -2225,8 +2230,9 @@ def mainline_code(
     # -------------------------------------------------------------------------
     # Perturbation parameters
     # -------------------------------------------------------------------------
-    # Because the sphere radii will be used for grid position computations 
-    # the masses and the radius augmentation must both be integers.
+    # Because the sphere radii will be used for the array creation for 
+    # perturbation form/shape, both the masses and the radius augmentation
+    # need to be integers.
     radius_augmentation_factor = 1
      
     # Set perturbation radial extension to be proportional to sphere mass.
@@ -2242,8 +2248,8 @@ def mainline_code(
     # Define the system separation distance for merging.
     merging_distance = first_perturb_radius + second_perturb_radius
 
-    # This can be exaggerated by an arbitrary value, if required for 
-    # vizualisation. 
+    # Rendered sphere size can be exaggerated by an arbitrary value, as 
+    # required for vizualisation. 
     sphere_augmentation_factor = 1.0
     merged_sphere_radius = pow(
         second_sphere_mass + first_sphere_mass, 1/3
@@ -2290,9 +2296,9 @@ def mainline_code(
     # Sheet surface computations
     # -------------------------------------------------------------------------
     # Define a field to store the offsets for four adjacent grid elements 
-    # (North, East, South, West) that form a square surrounding the 
-    # central element. These are used to calculate the forces acting on the
-    # central oscillator.
+    # (North, East, South, West) that form a square surrounding the central 
+    # element. These are used to calculate the forces acting on each 
+    # oscillator. 
     adjacent_grid_elements = ti.field(dtype=ti.i32, shape=(4, 2))
     offsets = [
         [ 0, 1],  # North: directly above
@@ -2301,7 +2307,7 @@ def mainline_code(
         [-1, 0]   # West: directly to the left
         ]
 
-    # Populate the adjacent grid elements field with the offset values. 
+    # Populate the adjacent grid elements field with these offset values. 
     for i in range(4):
         for j in range(2):
             adjacent_grid_elements[i, j] = offsets[i][j]
@@ -2486,7 +2492,7 @@ def mainline_code(
     camera_position_x = 0.0
     camera_position_y = 0.0
     horiz_angle_deg = 0.0  # Horizontal angle 
-    vert_angle_deg = 0.0  # Vertical angle
+    vert_angle_deg = 0.0   # Vertical angle
     
     print("Key Variables")
     print("=============")
@@ -2511,11 +2517,11 @@ def mainline_code(
         simulation_frame_counter += 1
         prev_time_stamp = time.time()
         
-        # Extract the GUI values and place in the 
-        # shared_slider_data dictionary. 
+        # Extract the GUI values and place in the shared_slider_data 
+        # data dictionary. 
         shared_slider_data_from_gui(shared_slider_data)
-        # Initialize processing variables using values from the 
-        # shared data dictionary. This decoupling ensures thread safety by 
+        # Initialize processing variables using values from the shared
+        # data dictionary. This decoupling ensures thread safety by 
         # isolating shared data from processing logic.
         with shared_slider_data['lock']:
             first_orbital_radius  = shared_slider_data['first_orbital_radius']
@@ -2541,13 +2547,12 @@ def mainline_code(
                 previous_polar_angle = current_polar_angle
                 
                 # Check the orbital radius value read from the GUI. 
-                # The user may have manually adjusted this value.
-                # Adjust the second radius accordingly.
-
+                # The user may have manually adjusted this value during the 
+                # run. Adjust the second radius accordingly.
                 if model_binary_separation >= merging_distance:
                     # ---------------------------------------------------------
                     # Compute the astrophysical separation distance using that
-                    # of the model. This is needed 
+                    # of the model. This is needed: 
                     # - as information for the display window, and
                     # - for the case of merging, the astro orbital decay value.
                     # ---------------------------------------------------------
@@ -2557,7 +2562,8 @@ def mainline_code(
                     )
                                         
                     # The omega value for the model is simply the value in the
-                    # simulation, "as seen in realtime" during the run. 
+                    # simulation, "as seen in realtime" (wall clock time) 
+                    # during the run. 
                     if loop_duration != 0.0: # Avoid the zerodivide condition 
                                              # by setting the value of omega 
                                              # to zero if the loop duration 
@@ -2614,7 +2620,7 @@ def mainline_code(
                             second_orbital_radius = 0.0
                             model_binary_separation = 0.0
                         else:
-                            # Reduce the size of the orbit(s) for the system.
+                            # Reduce the size of the orbits for the system.
                             first_orbital_radius -= (
                                 first_orbital_radius 
                                 * model_orbital_decay 
@@ -2645,7 +2651,7 @@ def mainline_code(
                                                + second_orbital_radius)
                     # ---------------------------------------------------------
                     # We compute these again because the binary orbit
-                    # sizes may have been reduced by the inspiralling.
+                    # sizes may have been reduced by the inspiral effect.
                     # ---------------------------------------------------------
                     astro_binary_separation = model_to_astro_scale(
                         model_binary_separation,
@@ -2674,7 +2680,7 @@ def mainline_code(
                         astro_omega * astro_first_orbital_radius
                     )
                     # Display the gravitational wave energy loss at the current 
-                    # orbit even if the type of run is non-inspiralling.
+                    # orbit (even for the run type of non-inspiralling).
                     binary_energy_loss = compute_binary_energy_loss(
                         binary_energy_loss_factor,
                         astro_binary_separation,
@@ -2723,7 +2729,8 @@ def mainline_code(
                     # If merging has not taken place, place either one or both
                     # orbiting spheres at the correct coordinates. If merging
                     # has taken place, place a larger sphere in the centre 
-                    # of the rendered surface.
+                    # of the rendered surface to represent the final, merged,
+                    # object.
                     perform_rendering_of_spheres(
                         model_binary_separation,
                         number_of_spheres,
@@ -2756,7 +2763,8 @@ def mainline_code(
                         root.after(0, set_and_grey_out_two_sliders)
 
                         # Place the perturbation associated with the central 
-                        # sphere once.
+                        # sphere once only since a stationary mass produces
+                        # no gravitational waves.
                         calculate_orbital_coords(
                             grid_centre,
                             first_orbital_radius,
@@ -2789,7 +2797,8 @@ def mainline_code(
             if "test" in run_option_value.lower():
                 # Test run cases ----------------------------------------------
                 # For simplicity, the test runs do not feature rendered 
-                # spheres.
+                # spheres. This allows for future development using the wave
+                # features only.
                 # -------------------------------------------------------------
                 if first_iteration_test_run:
                      # Execute this code block only once.
@@ -2807,8 +2816,8 @@ def mainline_code(
                          0.0,
                          grid_centre[None][2]
                      ])
+                     
                      # Overlay each perturbation (only once).
- 
                      overlay_perturb_shape_onto_grid(
                          first_perturb_radius,
                          first_perturb_array,
@@ -2826,14 +2835,14 @@ def mainline_code(
                          oscillator_velocities
                      )
                      
-                # Having two opposite borders damped, two undamped allows    
-                # a visual comparison to be made, in order to further 
-                # adjust parameters relating to this surface adjustment.
+                # Having two opposite borders damped with the other two 
+                # undamped allows a visual comparison to be made, in order to 
+                # further adjust parameters, should this be needed in future.
                 if run_option_value == "Test 1 - two of four borders damped":
                     number_of_damped_borders = 2
 
-            # The damping of the grid boundary is done for both the simulation
-            # proper, and test, cases. 
+            # The damping of all four grid boundary layers is done for both 
+            # the simulation proper, and one test case.
             damp_grid_boundary(
                 number_of_damped_borders,
                 reduced_grid_start,
@@ -2847,7 +2856,7 @@ def mainline_code(
             # -----------------------------------------------------------------
             # Determine the new oscillator positions using the Runge-Kutta 
             # 4th order numerical integration. This function is the core 
-            # of the simulation.
+            # of the whole simulation.
             # -----------------------------------------------------------------
             update_oscillator_positions_velocities_RK4(
                 reduced_grid_start,
@@ -2862,8 +2871,9 @@ def mainline_code(
             )
 
         if simulation_paused.is_set():
-            # Spheres must be rendered in every paused frame because rendered 
-            # "particles" need to be updated and replaced for each frame.
+            # Spheres must be continually rendered (in every paused frame)
+            # because Taichi rendered "particles" need to be updated and 
+            # replaced.
             if run_option_value in [
                 "Set first sphere orbital radius",
                 "Inspiralling"
@@ -2931,14 +2941,14 @@ def mainline_code(
             surface_for_rendering,
             vertices
         )
-        # Add objects to the scene
+        # Add objects to the rendering scene
         scene.mesh(
             vertices,
             indices=indices,
             per_vertex_color=(grid_colors),
             two_sided=True
         )
-        # Start the rendering 
+        # Start the rendering proper
         canvas.scene(scene)
         scene.ambient_light(color=(0.5, 0.5, 0.5))  # Ambient light
         scene.point_light(pos=(2, 4, 4), color=(1.0, 1.0, 1.0))
@@ -2946,7 +2956,8 @@ def mainline_code(
         camera = ti.ui.make_camera()
         scene.set_camera(camera)
         
-        # Adjust the (point of) view based on mouse movement with left click.
+        # Adjust the (point of) view based on mouse movement with left mouse
+        # click (LMB, left mouse button).
         if rendering_window.is_pressed(ti.ui.LMB):
             (vert_angle_deg, 
              horiz_angle_deg, 
@@ -2966,7 +2977,8 @@ def mainline_code(
             LMB_already_active = False
             prev_mouse_pos = None
         
-        # Adjust the zoom based on mouse movement with right click.
+        # Adjust the zoom based on mouse movement with right mouse button (RMB) 
+        # depressed.
         if rendering_window.is_pressed(ti.ui.RMB):
             (camera_zoom, 
              prev_zoom_mouse_pos, 
@@ -2986,8 +2998,8 @@ def mainline_code(
         view_distance = 2.0
         view_distance /= camera_zoom
         
-        # Prevent the vertical angle from reaching 90 degrees (since the 
-        # surface cannot be unambiguously rendered at exactly this angle).
+        # Prevent the vertical angle from reaching exactly 90 degrees (since 
+        # the surface cannot be unambiguously rendered at exactly this angle).
         if vert_angle_deg > 89.99:
             vert_angle_deg = 89.99  
 
@@ -3039,8 +3051,8 @@ def mainline_code(
         fps = 1/loop_duration
         if simulation_frame_counter == 1:
             start_time = time.time()
-        elapsed_time = time.time() - start_time  # This is our clock time. Runs
-                                                 # even when loop is paused.
+        elapsed_time = time.time() - start_time  # This is our wall clock time. 
+                                                 # Runs even when loop paused.
         with shared_display_data['lock']:
             shared_display_data['elapsed_time'] = elapsed_time
             shared_display_data['fps'] = fps
@@ -3060,7 +3072,7 @@ def mainline_code(
     # -------------------------------------------------------------------------
     # This section of the code reactivates those widgets that have been  
     # disabled, so that their default values can be set in readiness for the
-    # next main program run.
+    # next program run.
     reactivate_slider = {
         "state": "normal",
         "fg": "black",
@@ -3086,8 +3098,6 @@ def mainline_code(
     # At the end of the run, this option shows the CPU usage for each 
     # Taichi kernel function.
     if "test" in run_option_value.lower(): 
-        # Provide print output showing relative percentages of CPU time
-        # for each Taichi module (kernel).
         ti.sync()
         ti.profiler.print_kernel_profiler_info()
         
