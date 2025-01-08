@@ -17,7 +17,6 @@ computer-based visualisation of gravitational waves emitted by two orbiting bodi
    Pausing the application: [Link] https://vimeo.com/1045103932 
    
 **Ad hoc testing**    
-   Attempting to set bodies' masses to zero: [Link] https://vimeo.com/1045104065
    Setting differing masses: [Link] https://vimeo.com/1045104089
    
 **Surface Adjustments**  
