@@ -13,11 +13,12 @@ computer-based visualisation of gravitational waves emitted by two orbiting bodi
    Prototype for GUI (Tkinter): [Link] https://vimeo.com/1045104014
 	
 **Basic Run Overview**  
-   Starting and stopping the simulation: [Link] https://vimeo.com/1043244225?ts=0&share=copy
+   Starting and stopping the simulation: [Link] https://vimeo.com/1043244225
    Pausing the application: [Link] https://vimeo.com/1045103932 
    
-**Ad hoc testing**    
+**Sphere Adjustments**    
    Setting differing masses: [Link] https://vimeo.com/1045104089
+   Altering the system separation distance [Link] https://vimeo.com/1045156128
    
 **Surface Adjustments**  
    Grid chequer size: [Link] https://vimeo.com/1045103837
