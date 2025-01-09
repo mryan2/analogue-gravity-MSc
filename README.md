@@ -7,7 +7,11 @@ computer-based visualisation of gravitational waves emitted by two orbiting bodi
 - User-controlled camera rotation and zoom for interactive exploration.
 - A GUI for parameter customization.
 
+## Thesis Text
+This is provided in both the original editable format (MS Word for Windows) and as a PDF.
+
 ## Demonstration Videos
+
 **Early Development** 
    Visualization using Mayavi: [Link] https://vimeo.com/1043240577
    Prototype for GUI (Tkinter): [Link] https://vimeo.com/1045104014
