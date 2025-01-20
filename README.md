@@ -1,4 +1,4 @@
-# MSc Project: Gravitational Wave Simulation
+# MSc Project: Visualization of Gravitational Waves Using a Computational Analogue Model
 Implementation, using the Python programming language, of a simple numerical, 
 computer-based visualisation of gravitational waves emitted by two orbiting bodies. 
 
