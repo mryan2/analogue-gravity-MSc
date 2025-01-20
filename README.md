@@ -19,6 +19,9 @@ This is provided in both the original editable format (MS Word for Windows) and 
 **Basic Run Overview**  
    Starting and stopping the simulation: [Link] https://vimeo.com/1043244225
    Pausing the application: [Link] https://vimeo.com/1045103932 
+   Main run examples: [Link] https://vimeo.com/1048564459/828d176b26
+   [Link] https://vimeo.com/1048564337/fddc958068
+   [Link] https://vimeo.com/1048564300/2bd8f5cb54
    
 **Sphere Adjustments**    
    Setting differing masses: [Link] https://vimeo.com/1045104089
