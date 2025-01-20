@@ -702,7 +702,7 @@ def update_info_window(
             text = f"Elapsed Time: {int(hours):02}:"
                    f"{int(minutes):02}:{int(seconds):02}"
         )
-        labels["fps_label"].config(text=f"FPS: {current_fps:.2f}")
+        labels["fps_label"].config(text=f"FPS: {current_fps:.1f}")
         
         #  Set remaining labels
         if run_option_value in ["Set first sphere orbital radius", 
@@ -1376,7 +1376,7 @@ def rescale_orbital_coords_for_rendering(
         - orbital_coords (ti.template()): Template for the original sphere 
           coordinates.
         - rendered_orbital_coords (ti.template()): Template for the rescaled 
-        - sphere coordinates for rendering.
+          sphere coordinates for rendering.
     """
     rendered_orbital_coords[0] = ( 
         [orbital_coords[None][0] * rendering_rescale,
@@ -2335,7 +2335,7 @@ def mainline_code(
     # -------------------------------------------------------------------------
     # Model sheet parameters
     # -------------------------------------------------------------------------
-    elastic_constant = 1e11
+    elastic_constant = 1e12
     timestep = 1e-7
     oscillator_mass = 1.0
     
